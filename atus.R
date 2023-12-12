@@ -46,7 +46,9 @@ dt_sum_0322<-read.csv("atussum-0322/atussum_0322.dat")
              't050404', 't050405', 't050499', 't059999')
   
 ## Define self-care sleep/grooming/eating
-  self_care<-c('t010101', 't010102', 't010199', # sleeping
+  sleep<-c('t010101', 't010102', 't010199')
+  
+  self_care<-c(#'t010101', 't010102', 't010199', # sleeping
                't010201', 't010299',  # washing, dressing, and grooming self
                't010301' , 't010399', 't010401', 't010499', 't010501', 't010599', 't019999', ## personal care
                't110101' ,'t110199',  't110281',  't110289', 't119999')  ## eating and drinking
@@ -205,36 +207,76 @@ dt_sum_0322<-read.csv("atussum-0322/atussum_0322.dat")
            sed_act = rowSums(select(., all_of(sed_act)), na.rm = T), 
            soc_leis = rowSums(select(., all_of(soc_leis)), na.rm = T), 
            soc_serv = rowSums(select(., all_of(soc_serv)), na.rm = T), 
-           travel = rowSums(select(., all_of(travel)), na.rm = T)
+           travel = rowSums(select(., all_of(travel)), na.rm = T),
+           wrk_act = rowSums(select(., all_of(wrk_act)), na.rm = T),
+           sleep = rowSums(select(., all_of(sleep)), na.rm = T),
+           ind_leis = rowSums(select(., all_of(ind_leis)), na.rm = T)
     )
   
   
-           
+time_grp<-dt2 %>%
+       filter(tudiaryday %in% c(2:6)) %>%  # exclude weekends 
+       group_by(year, gender)  %>%
+       summarise(across(c(wrk_edu, self_care, child_care, adult_care,
+                          house_wrk, exec, phone_fam, relig, sed_act, 
+                          soc_leis, soc_serv, travel, wrk_act, sleep, ind_leis), ~ mean(., na.rm = T))) %>%
+  pivot_longer(-c(year,gender), names_to = 'category',
+               values_to = 'minutes' )
   
-                             
-                             
-                    
-  gender<-dt2 %>%
-       group_by(year, gender) %>%
-       summarise(house_wrk = mean(house_wrk, na.rm = T))
-  
-  edu<-dt2 %>%
-    group_by(year, edu, gender)%>%
-    summarise(house_wrk = mean(house_wrk, na.rm = T))
+# edu<-dt2 %>%
+#     group_by(year, edu, gender)%>%
+#     summarise(house_wrk = mean(house_wrk, na.rm = T))
   
   ## GGplot 
   
-  gf %>%
-    ggplot(aes(x= year, y = worktime, group = gender, color = gender)) +
-    geom_line() 
+time_grp %>%
+   filter(category %in% c('self_care', 'soc_leis', 'ind_leis', 'wrk_act')) %>%
+    ggplot(aes(x= year, y = minutes, group = category, color = gender)) +
+    geom_line() +
+    facet_grid(category ~ gender) + ylim(0,500)
   
-  edu %>%
-    filter(year>=2015) %>%
-    ggplot(aes(x= year, y = house_wrk, group = gender, color = gender)) +
-    facet_wrap( ~edu, nrow =1)+
-    geom_line() 
-     
-  
+
+
+
+####### Section 3: Run a K-means clustering analysis ----
+library(cluster)
+library(factoextra)
+
+set.seed(123)
+
+#https://www.datacamp.com/tutorial/k-means-clustering-r
+
+# Analytical dataset 
+unique(time_grp$category)
+var_int <-c('wrk_edu', 'child_care', 'adult_care', 'house_wrk', 
+            'relig', 'sed_act', 'soc_leis', 'sleep', 'ind_leis')
+df <- dt2 %>%
+  filter(year == 2022) %>%
+  select(all_of(var_int))
+
+# Normalize the variables of interests
+df<-df %>% mutate(across(everything(), ~ scale(.)))
+
+# write a func to compute total within-cluster sum of square
+wss<-function(k) {
+  kmeans(df, k, nstart = 10)$tot.withinss
+}
+
+# compute and plot wss for k =1 to k =15
+k.values<-1:20
+
+# extract wss for 2- 15 clusters
+wss_values<-map_dbl(k.values, wss)
+
+# plot WSS by cluster numbers 
+wss_df<-tibble(cluster = 1:20, wss_values)
+
+wss_df %>%
+  ggplot(aes(x = cluster, y = wss_values,group =1)) +
+  geom_point(size = 4)+
+  geom_line() +
+  scale_x_continuous(breaks = c(0:20)) +
+  xlab('Number of clusters')
 
 
 
