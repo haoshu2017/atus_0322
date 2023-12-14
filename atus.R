@@ -36,7 +36,7 @@ dt_sum_0322<-read.csv("atussum-0322/atussum_0322.dat")
 #        return(x)
 #} )
 
-  names(dt_sum_0322)<-tolower(names(dt_sum_0322))
+names(dt_sum_0322)<-tolower(names(dt_sum_0322))
 
 ## Define work-related activities to be used -- 
   wrk_act<-c('t050101', 't050102', 't050103', 't050189',
@@ -215,13 +215,15 @@ dt_sum_0322<-read.csv("atussum-0322/atussum_0322.dat")
   
   
 time_grp<-dt2 %>%
-       filter(tudiaryday %in% c(2:6)) %>%  # exclude weekends 
+       #filter(tudiaryday %in% c(2:6)) %>%  # exclude weekends 
        group_by(year, gender)  %>%
        summarise(across(c(wrk_edu, self_care, child_care, adult_care,
                           house_wrk, exec, phone_fam, relig, sed_act, 
                           soc_leis, soc_serv, travel, wrk_act, sleep, ind_leis), ~ mean(., na.rm = T))) %>%
   pivot_longer(-c(year,gender), names_to = 'category',
                values_to = 'minutes' )
+
+saveRDS(time_grp, paste0('data_save/', 'grouped_time.rds'))
   
 # edu<-dt2 %>%
 #     group_by(year, edu, gender)%>%
